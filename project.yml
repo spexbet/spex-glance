@@ -1,0 +1,121 @@
+# XcodeGen spec. Generate the project with:  scripts/gen.sh
+# Your Apple Team ID is read from an untracked `.team` file (gen.sh creates it on first run),
+# so nothing personal is committed. Optionally change the bundle prefix (also in SharedIDs).
+name: SpexGlance
+
+options:
+  bundleIdPrefix: bet.spex.glance   # App Group is "<TeamID>.bet.spex.glance" (macOS form; a "group." id needs profile support cfprefsd did not grant). Legacy com.example.* groups stay in the entitlements for one release (Migration.swift); keep in sync with SharedIDs.bundlePrefix + entitlements
+  deploymentTarget:
+    macOS: "15.0"   # Apple-supported releases only: 15, 26, 27
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: "${DEVELOPMENT_TEAM}"   # supplied by scripts/gen.sh from .team
+    SWIFT_VERSION: "5.9"
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "0.3.1"
+    CURRENT_PROJECT_VERSION: "40"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    SWIFT_STRICT_CONCURRENCY: minimal
+    # Notarization requires the hardened runtime on every executable (app + widget).
+    ENABLE_HARDENED_RUNTIME: YES
+    # Apple silicon only.
+    ARCHS: arm64
+    VALID_ARCHS: arm64
+    ONLY_ACTIVE_ARCH: NO
+
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.6.0"
+
+targets:
+  SpexGlance:
+    type: application
+    platform: macOS
+    sources:
+      - path: App
+      - path: Shared
+    entitlements:
+      path: App/SpexGlance.entitlements
+      properties:
+        com.apple.security.application-groups: ["$(TeamIdentifierPrefix)bet.spex.glance", group.com.example.spexglance]
+        keychain-access-groups: ["$(AppIdentifierPrefix)bet.spex.glance.shared", "$(AppIdentifierPrefix)com.example.spexglance.shared"]
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.files.user-selected.read-write: true
+        # Live Line → iCloud (opt-in). Private database only; see App/LiveLineSync.swift.
+        com.apple.developer.icloud-services: [CloudKit]
+        com.apple.developer.icloud-container-identifiers: [iCloud.bet.spex.glance]
+        # Sparkle 2 inside the sandbox reaches its XPC services by these names.
+        com.apple.security.temporary-exception.mach-lookup.global-name:
+          - "$(PRODUCT_BUNDLE_IDENTIFIER)-spks"
+          - "$(PRODUCT_BUNDLE_IDENTIFIER)-spki"
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleName: Spex Glance
+        CFBundleDisplayName: Spex Glance
+        # xcodegen regenerates this plist on every build and would otherwise write 1.0 / 1 here.
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSApplicationCategoryType: public.app-category.finance
+        SpexKeychainAccessGroup: "$(AppIdentifierPrefix)bet.spex.glance.shared"
+        SpexAppGroup: "$(TeamIdentifierPrefix)bet.spex.glance"
+        # Bundled Space Grotesk (OFL) sits flat in Resources; "." tells AppKit to load fonts from there.
+        ATSApplicationFontsPath: "."
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
+        # Sparkle. Public key is supplied by scripts/gen.sh.
+        SUFeedURL: "https://spex.bet/glance/appcast.xml"
+        SUPublicEDKey: "${SPARKLE_PUBLIC_KEY}"
+        SUEnableInstallerLauncherService: true
+        SUEnableDownloaderService: true
+        SUAutomaticallyUpdate: false
+        # Check daily by default without Sparkle's first-launch "check automatically?" prompt.
+        # The Settings toggle still lets a user turn it off.
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: bet.spex.glance
+        PRODUCT_NAME: "Spex Glance"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - target: SpexGlanceWidget
+        embed: true
+        codeSign: true
+      - package: Sparkle
+
+  SpexGlanceWidget:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: Widget
+      - path: Shared
+      # Space Grotesk for the widget's numbers; Brand.display registers it from this bundle.
+      - path: App/Fonts
+        buildPhase: resources
+    entitlements:
+      path: Widget/SpexGlanceWidget.entitlements
+      properties:
+        com.apple.security.application-groups: ["$(TeamIdentifierPrefix)bet.spex.glance", group.com.example.spexglance]
+        keychain-access-groups: ["$(AppIdentifierPrefix)bet.spex.glance.shared", "$(AppIdentifierPrefix)com.example.spexglance.shared"]
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: Spex Glance
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        SpexKeychainAccessGroup: "$(AppIdentifierPrefix)bet.spex.glance.shared"
+        SpexAppGroup: "$(TeamIdentifierPrefix)bet.spex.glance"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: bet.spex.glance.widget
+        SKIP_INSTALL: YES

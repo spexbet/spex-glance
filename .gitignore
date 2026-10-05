@@ -1,0 +1,15 @@
+# Local-only: URL of the old repo's appcast for the release build-number guard.
+# Untracked so the old personal account handle never enters this public repo.
+# Delete it once the update bridge is retired (Phase 7).
+.bridge-appcast-url
+
+# Xcode
+*.xcodeproj
+xcuserdata/
+DerivedData/
+build/
+.DS_Store
+*.swp
+.team
+App/Assets.xcassets/AppIcon.appiconset/*.png
+dist/

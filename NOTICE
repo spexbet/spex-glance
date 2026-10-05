@@ -1,0 +1,13 @@
+Spex — NOTICE
+
+The source code in this repository is licensed under the MIT License (see LICENSE).
+
+The following are NOT covered by the MIT License:
+
+- The "Spex" name, the Spex logo, and the Spex wordmark are not licensed under MIT.
+  The MIT grant covers the code only; it does not grant any right to use the Spex
+  name, logo, or wordmark.
+
+- Bundled fonts. Space Grotesk is licensed under the SIL Open Font License (OFL),
+  not the MIT License, and remains under the OFL. See the font files and their
+  accompanying OFL license for terms.
