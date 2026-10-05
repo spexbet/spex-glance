@@ -12,8 +12,5 @@ export DEVELOPMENT_TEAM="$(tr -d '[:space:]' < .team)"
 SPARKLE_PUBLIC_KEY=""
 [ -f sparkle-public-key.txt ] && SPARKLE_PUBLIC_KEY="$(tr -d '[:space:]' < sparkle-public-key.txt)"
 export SPARKLE_PUBLIC_KEY
-if [ ! -d App/Assets.xcassets/AppIcon.appiconset ] || [ -z "$(ls App/Assets.xcassets/AppIcon.appiconset/*.png 2>/dev/null)" ]; then
-  echo "Rendering app icon..."
-  swift scripts/render-icon.swift >/dev/null
-fi
+./scripts/ensure-icon.sh
 xcodegen generate

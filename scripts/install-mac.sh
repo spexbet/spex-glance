@@ -7,6 +7,7 @@ cd "$(dirname "$0")/.."
 if [ -z "$DEVELOPER_DIR" ] && [ -d /Applications/Xcode.app ]; then
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 fi
+./scripts/ensure-icon.sh
 LOG="$(mktemp -t spexglance-build)"
 if ! xcodebuild -project SpexGlance.xcodeproj -scheme SpexGlance -destination 'platform=macOS' \
      -configuration Release -allowProvisioningUpdates build >"$LOG" 2>&1; then
