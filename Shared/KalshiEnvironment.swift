@@ -42,7 +42,7 @@ public enum KalshiEnvironment: String, Codable, CaseIterable, Identifiable, Send
         }
     }
 
-    /// Where a tap on the widget sends the user (the app receives it via onOpenURL and opens it).
+    /// Kalshi's portfolio page (the "Open Kalshi portfolio" button).
     public var portfolioURL: URL {
         switch self {
         case .demo: return URL(string: "https://demo.kalshi.co/portfolio")!

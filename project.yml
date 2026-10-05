@@ -16,7 +16,7 @@ settings:
     SWIFT_VERSION: "5.9"
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "0.3.2"
-    CURRENT_PROJECT_VERSION: "42"
+    CURRENT_PROJECT_VERSION: "43"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: minimal
     # Notarization requires the hardened runtime on every executable (app + widget).
@@ -68,6 +68,10 @@ targets:
         LSApplicationCategoryType: public.app-category.finance
         SpexKeychainAccessGroup: "$(AppIdentifierPrefix)bet.spex.glance.shared"
         SpexAppGroup: "$(TeamIdentifierPrefix)bet.spex.glance"
+        # Widget taps: spexglance://positions and spexglance://game?id=… (Shared/DeepLink.swift).
+        CFBundleURLTypes:
+          - CFBundleURLName: bet.spex.glance
+            CFBundleURLSchemes: [spexglance]
         # Bundled Space Grotesk (OFL) sits flat in Resources; "." tells AppKit to load fonts from there.
         ATSApplicationFontsPath: "."
         NSAppTransportSecurity:

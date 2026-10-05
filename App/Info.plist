@@ -20,6 +20,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>bet.spex.glance</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>spexglance</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSApplicationCategoryType</key>
@@ -43,9 +54,9 @@
 	<string>WJTxch4Me4tYxMezx2F8ZDmZydya6x/8ZpwII4NUTQs=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
-	<key>SpexKeychainAccessGroup</key>
-	<string>$(AppIdentifierPrefix)bet.spex.glance.shared</string>
 	<key>SpexAppGroup</key>
 	<string>$(TeamIdentifierPrefix)bet.spex.glance</string>
+	<key>SpexKeychainAccessGroup</key>
+	<string>$(AppIdentifierPrefix)bet.spex.glance.shared</string>
 </dict>
 </plist>

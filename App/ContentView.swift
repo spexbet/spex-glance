@@ -40,10 +40,19 @@ struct ContentView: View {
                 ConnectWizardView()
                     .environmentObject(model)
             }
-        // A widget tap hands its URL to the app; forward it to the browser.
         .onChange(of: workMode) { _, on in model.workModeChanged(on) }
+        // A widget tap: bring this window forward on Positions with that game open. No browser —
+        // Kalshi is one click away on "Open Kalshi portfolio". (Old widget entries still carry
+        // an https URL until they refresh; those just open the window too.)
         .onOpenURL { url in
-            if url.scheme == "https" { Browser.open(url) }
+            let link = DeepLink(url) ?? .positions
+            if case .game(let id) = link,
+               let g = (model.snapshot?.groups ?? []).first(where: { $0.id == id }) {
+                // Don't let a filter hide the game that was tapped.
+                if !sportFilter.isEmpty && !SportFilterBar.matches(g, sportFilter) { sportFilter = "" }
+                if liveOnly && !g.isInPlay { liveOnly = false }
+            }
+            model.open(link)
         }
     }
 

@@ -52,6 +52,7 @@ struct PositionsTab: View {
             .frame(maxWidth: .infinity)
             Divider()
 
+            ScrollViewReader { proxy in
             List {
                 Section(sectionTitle) {
                     if !groups.isEmpty {
@@ -60,6 +61,7 @@ struct PositionsTab: View {
                                 get: { model.expandedGroups.contains(g.id) },
                                 set: { _ in model.toggleExpanded(g.id) }),
                                 scores: model.snapshot?.liveScores ?? [:])
+                            .id(g.id)
                         }
                         if hiddenNonSports > 0 {
                             Text("\(hiddenNonSports) non-sports position\(hiddenNonSports == 1 ? "" : "s") not shown")
@@ -73,6 +75,18 @@ struct PositionsTab: View {
             .refreshable { await model.refresh() }
             .scrollContentBackground(.hidden)
             .background(Theme.paper)
+            .onAppear { scrollToFocus(proxy) }
+            .onChange(of: model.focusGroup) { _, _ in scrollToFocus(proxy) }
+            }
+        }
+    }
+
+    /// A widget tapped this game: bring it into view once, then forget it.
+    private func scrollToFocus(_ proxy: ScrollViewProxy) {
+        guard let id = model.focusGroup else { return }
+        DispatchQueue.main.async {
+            withAnimation { proxy.scrollTo(id, anchor: .top) }
+            model.focusGroup = nil
         }
     }
 

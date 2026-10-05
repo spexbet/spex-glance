@@ -168,7 +168,7 @@ struct MediumView: View {
                 Text("No open sports positions").font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity)
                 Spacer()
             } else {
-                ForEach(snap.groups.prefix(3)) { GroupLine(group: $0) }
+                ForEach(snap.groups.prefix(3)) { g in Link(destination: DeepLink.game(g.id).url) { GroupLine(group: g) } }
                 if snap.groups.count > 3 {
                     Text("+\(snap.groups.count - 3) more").font(.caption2).foregroundStyle(.tertiary)
                 }
@@ -223,7 +223,7 @@ struct LargeView: View {
             if snap.bets.isEmpty {
                 Text("No open sports positions").font(.caption).foregroundStyle(.secondary)
             } else {
-                ForEach(snap.groups.prefix(6)) { GroupLine(group: $0) }
+                ForEach(snap.groups.prefix(6)) { g in Link(destination: DeepLink.game(g.id).url) { GroupLine(group: g) } }
                 if snap.groups.count > 6 {
                     Text("+\(snap.groups.count - 6) more").font(.caption2).foregroundStyle(.tertiary)
                 }

@@ -53,7 +53,7 @@ struct OpenBetsWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: SharedIDs.widgetKind, provider: OpenBetsProvider()) { entry in
             OpenBetsWidgetView(entry: entry)   // sets its own container background per family
-                .widgetURL(entry.snapshot?.environment.portfolioURL ?? KalshiEnvironment.prod.portfolioURL)
+                .widgetURL(DeepLink.positions.url)   // opens Glance, not the browser
         }
         .configurationDisplayName("Open Bets")
         .description("Your open Kalshi sports bets and unrealized P&L.")

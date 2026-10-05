@@ -10,7 +10,9 @@ struct SpexGlanceApp: App {
     @AppStorage(Prefs.workModeKey, store: Prefs.defaults) private var workMode = false
 
     var body: some Scene {
-        WindowGroup(id: "main") {
+        // One window, ever. A widget tap or the menu bar's "Open" brings this window forward; it
+        // never spawns a second one (WindowGroup did, on every widget tap).
+        Window("Spex Glance", id: "main") {
             ContentView()
                 .environmentObject(model)
                 .preferredColorScheme(appearance.scheme)
@@ -167,6 +169,19 @@ final class AppModel: ObservableObject {
     /// Last Live Line enabled/store/env combination sync was started for.
     private var liveLineSyncSig = ""
     private var scopeChecked = false
+
+    /// A game a widget tap asked to show; PositionsTab scrolls to it and clears this.
+    @Published var focusGroup: String?
+
+    /// Handle a spexglance:// link: Positions tab, and the tapped game expanded and in view.
+    func open(_ link: DeepLink) {
+        NSApp.activate(ignoringOtherApps: true)
+        tab = .positions
+        if case .game(let id) = link {
+            expandedGroups.insert(id)
+            focusGroup = id
+        }
+    }
 
     func toggleExpanded(_ id: String) {
         if expandedGroups.contains(id) { expandedGroups.remove(id) } else { expandedGroups.insert(id) }
