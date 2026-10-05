@@ -5,7 +5,7 @@ import AppKit
 /// The Spex mark (round spectacles over a rising zig-zag arrow) knocked out of a
 /// solid rounded square, the same silhouette as the app icon. Rendered as a macOS
 /// template image: the tile takes the menu bar's tint and the mark shows through.
-/// Geometry matches docs/logo/spex-mark.svg in the Haruspex repo (64×64 space).
+/// Geometry matches docs/logo/spex-mark.svg (1024 space; divide by 16 for the 64×64 grid).
 enum MenuBarIcon {
     /// Normal: a template image, so the tile takes the menu bar's tint.
     static let image: NSImage = render(color: nil)
@@ -48,13 +48,13 @@ enum MenuBarIcon {
             stroke.curve(to: p(33, 18), controlPoint1: p(31.5, 15), controlPoint2: p(32.5, 15))
             stroke.move(to: p(8, 17));  stroke.line(to: p(4, 11))
             stroke.move(to: p(56, 17)); stroke.line(to: p(60, 11))
-            stroke.move(to: p(12, 55))
-            stroke.line(to: p(21, 49)); stroke.line(to: p(27, 53))
-            stroke.line(to: p(36, 46)); stroke.line(to: p(44, 42))
+            stroke.move(to: p(13.1, 52.29))
+            stroke.line(to: p(22.88, 47.66)); stroke.line(to: p(28.23, 52.49))
+            stroke.line(to: p(38.15, 46.88)); stroke.line(to: p(46.65, 44.09))
             stroke.stroke()
 
             let head = NSBezierPath()
-            head.move(to: p(53, 38)); head.line(to: p(42, 39)); head.line(to: p(47, 48)); head.close()
+            head.move(to: p(55.05, 39.7)); head.line(to: p(44.0, 39.71)); head.line(to: p(48.18, 49.12)); head.close()
             head.fill()
             return true
         }

@@ -1,7 +1,7 @@
 #!/usr/bin/env swift
 // Renders the Spex Glance app icon (paper ground, cobalt disc, cream mark) into
 // App/Assets.xcassets/AppIcon.appiconset. Run from the repo root:  swift scripts/render-icon.swift
-// Geometry matches docs/logo/spex-mark.svg in the Haruspex repo (64×64 space).
+// Geometry matches docs/logo/spex-mark.svg (1024 space; divide by 16 for the 64×64 grid).
 import AppKit
 
 let paper  = NSColor(srgbRed: 0xF6/255, green: 0xF1/255, blue: 0xE4/255, alpha: 1)
@@ -19,10 +19,10 @@ func drawMark(ox: CGFloat, oy: CGFloat, s: CGFloat, color: NSColor) {
     path.move(to: p(31, 18)); path.curve(to: p(33, 18), controlPoint1: p(31.5, 15), controlPoint2: p(32.5, 15))
     path.move(to: p(8, 17));  path.line(to: p(4, 11))
     path.move(to: p(56, 17)); path.line(to: p(60, 11))
-    path.move(to: p(12, 55)); path.line(to: p(21, 49)); path.line(to: p(27, 53)); path.line(to: p(36, 46)); path.line(to: p(44, 42))
+    path.move(to: p(13.1, 52.29)); path.line(to: p(22.88, 47.66)); path.line(to: p(28.23, 52.49)); path.line(to: p(38.15, 46.88)); path.line(to: p(46.65, 44.09))
     path.stroke()
     let head = NSBezierPath()
-    head.move(to: p(53, 38)); head.line(to: p(42, 39)); head.line(to: p(47, 48)); head.close()
+    head.move(to: p(55.05, 39.7)); head.line(to: p(44.0, 39.71)); head.line(to: p(48.18, 49.12)); head.close()
     head.fill()
 }
 
