@@ -25,5 +25,7 @@ pkill -x "Spex Glance" 2>/dev/null || true
 sleep 1
 rm -rf "/Applications/Spex Glance.app"
 ditto "$PRODUCTS/Spex Glance.app" "/Applications/Spex Glance.app"
+# The widget extension keeps running the old build until it's restarted; make it pick up this one.
+pkill -f "SpexGlanceWidget.appex" 2>/dev/null || true
 open "/Applications/Spex Glance.app"
 echo "BUILD SUCCEEDED — installed /Applications/Spex Glance.app"
