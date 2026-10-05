@@ -63,8 +63,5 @@ public enum SharedIDs {
         if let g = Bundle.main.object(forInfoDictionaryKey: "SpexAppGroup") as? String, !g.isEmpty, !g.contains("$(") { return g }
         return "group.\(bundlePrefix)"
     }()
-    /// Pre-0.3.0 ids. Read once by Migration, then dropped from the entitlements in a later release.
-    public static let legacyBundlePrefix = "com.example.spexglance"
-    public static let legacyAppGroup = "group.\(legacyBundlePrefix)"
     public static let widgetKind = "SpexGlanceOpenBets"
 }

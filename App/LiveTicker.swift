@@ -20,6 +20,37 @@ struct LiveOrder: Equatable {
     var isBuy: Bool?
     var yesPriceDollars: Double?
     var remaining: Double?
+    /// Kalshi's `last_update_reason`: "Trade", "Amend", "Decrease", or a "…Cancel" when the
+    /// exchange cancelled it (halt, close, settlement bounds…). Absent on a cancel the user made.
+    var reason: String? = nil
+}
+
+/// A resting order Kalshi cancelled on its own, kept briefly so the Orders tab can say why it vanished.
+struct KalshiCancel: Identifiable, Equatable {
+    var id: String
+    var eventTitle: String
+    var sideTitle: String
+    var isYes: Bool
+    var isBuy: Bool
+    var reason: String
+    var at: Date
+
+    /// Plain English for the reasons Kalshi sends when *it* cancels an order. Nil for anything
+    /// the user did (cancel, amend, decrease) or a fill — those need no explanation.
+    static func explanation(for reason: String?) -> String? {
+        switch reason {
+        case "SettlementBoundsCancel": return "Cancelled by Kalshi (settlement bounds changed)"
+        case "HaltCancel":             return "Cancelled by Kalshi (market halted)"
+        case "CloseCancel":            return "Cancelled by Kalshi (market closed)"
+        case "ExpiryCancel":           return "Expired (the order's time limit ran out)"
+        case "MarginCancel":           return "Cancelled by Kalshi (margin requirements)"
+        case "SelfTradeCancel":        return "Cancelled by Kalshi (would have traded against your own order)"
+        case "PostOnlyCrossCancel":    return "Cancelled by Kalshi (post-only order would have crossed)"
+        case "ReduceOnlyCancel":       return "Cancelled by Kalshi (reduce-only limit)"
+        case let r? where r.hasSuffix("Cancel"): return "Cancelled by Kalshi"
+        default: return nil
+        }
+    }
 }
 
 /// A market state change pushed by `market_lifecycle_v2`. Kalshi sends every market on the
@@ -205,7 +236,8 @@ final class LiveTicker {
             else if let a = (m["action"] as? String)?.lowercased() { isBuy = a == "buy" }
             onOrder?(LiveOrder(orderID: id, ticker: ticker, status: status.lowercased(), isYes: isYes, isBuy: isBuy,
                                yesPriceDollars: num(m, "yes_price_dollars"),
-                               remaining: num(m, "remaining_count_fp")))
+                               remaining: num(m, "remaining_count_fp"),
+                               reason: m["last_update_reason"] as? String))
 
         case "market_lifecycle_v2":
             // Firehose: every market on Kalshi. Only ours matter.

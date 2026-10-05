@@ -15,7 +15,6 @@
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>$(TeamIdentifierPrefix)bet.spex.glance</string>
-		<string>group.com.example.spexglance</string>
 	</array>
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
@@ -29,7 +28,6 @@
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)bet.spex.glance.shared</string>
-		<string>$(AppIdentifierPrefix)com.example.spexglance.shared</string>
 	</array>
 </dict>
 </plist>

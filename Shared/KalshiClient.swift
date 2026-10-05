@@ -64,8 +64,10 @@ public enum KalshiError: Error, LocalizedError {
     }
 }
 
-/// Minimal, read-only Kalshi Trade API v2 client. Every request is signed with the
-/// credential's private key; no write endpoints exist here on purpose.
+/// Minimal, read-only Kalshi Trade API v2 client. Portfolio and account requests are signed
+/// with the credential's private key. Kalshi's public game data (milestones, structured targets,
+/// live scoreboards — `security: []` in its OpenAPI spec) goes unsigned, so it doesn't draw on
+/// the account's read-token budget. No write endpoints exist here on purpose.
 public struct KalshiClient: Sendable {
     public let credential: KalshiCredential
     private let session: URLSession
@@ -89,13 +91,13 @@ public struct KalshiClient: Sendable {
     /// The game record behind an event: real start time, end time, status. Prefers the milestone
     /// that lists the event as primary. Nil when Kalshi has none (futures, some leagues).
     public func milestone(forEvent ticker: String) async throws -> Milestone? {
-        let r: MilestonesResponse = try await get("/milestones", query: ["related_event_ticker": ticker, "limit": "10"])
+        let r: MilestonesResponse = try await get("/milestones", query: ["related_event_ticker": ticker, "limit": "10"], signed: false)
         return r.milestones.first { ($0.primary_event_tickers ?? []).contains(ticker) } ?? r.milestones.first
     }
 
     /// A team or player record: name and abbreviation. Cached forever by the caller.
     public func structuredTarget(_ id: String) async throws -> StructuredTarget {
-        let r: StructuredTargetResponse = try await get("/structured_targets/\(id)")
+        let r: StructuredTargetResponse = try await get("/structured_targets/\(id)", signed: false)
         return r.structured_target
     }
 
@@ -103,7 +105,7 @@ public struct KalshiClient: Sendable {
     public func liveData(milestoneIDs: [String]) async throws -> [LiveDataEntry] {
         var out: [LiveDataEntry] = []
         for chunk in milestoneIDs.chunked(100) {
-            let r: LiveDatasResponse = try await get("/live_data/batch", repeated: ("milestone_ids", chunk))
+            let r: LiveDatasResponse = try await get("/live_data/batch", repeated: ("milestone_ids", chunk), signed: false)
             out += r.live_datas ?? []
         }
         return out
@@ -210,21 +212,22 @@ public struct KalshiClient: Sendable {
     // MARK: Transport
 
     private func get<T: Decodable>(_ path: String, query: [String: String] = [:],
-                                   repeated: (String, [String])? = nil) async throws -> T {
+                                   repeated: (String, [String])? = nil, signed: Bool = true) async throws -> T {
         let env = credential.environment
         let signedPath = env.apiPrefix + path            // NO query string in the signed text
         var comps = URLComponents(url: env.baseURL.appendingPathComponent(signedPath), resolvingAgainstBaseURL: false)!
         var items = query.map { URLQueryItem(name: $0.key, value: $0.value) }
         if let (name, values) = repeated { items += values.map { URLQueryItem(name: name, value: $0) } }
         if !items.isEmpty { comps.queryItems = items }
-        let ts = String(Int(Date().timeIntervalSince1970 * 1000))
-        let signature = try credential.sign(ts + "GET" + signedPath).base64EncodedString()
-
         var req = URLRequest(url: comps.url!)
         req.httpMethod = "GET"
-        req.setValue(credential.keyID, forHTTPHeaderField: "KALSHI-ACCESS-KEY")
-        req.setValue(ts, forHTTPHeaderField: "KALSHI-ACCESS-TIMESTAMP")
-        req.setValue(signature, forHTTPHeaderField: "KALSHI-ACCESS-SIGNATURE")
+        if signed {
+            let ts = String(Int(Date().timeIntervalSince1970 * 1000))
+            let signature = try credential.sign(ts + "GET" + signedPath).base64EncodedString()
+            req.setValue(credential.keyID, forHTTPHeaderField: "KALSHI-ACCESS-KEY")
+            req.setValue(ts, forHTTPHeaderField: "KALSHI-ACCESS-TIMESTAMP")
+            req.setValue(signature, forHTTPHeaderField: "KALSHI-ACCESS-SIGNATURE")
+        }
         req.setValue("application/json", forHTTPHeaderField: "Accept")
         req.timeoutInterval = 20
 

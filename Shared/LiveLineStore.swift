@@ -82,28 +82,6 @@ public enum LiveLineStore {
         return st == errSecSuccess ? k : nil
     }
 
-    /// Move the chunk key from the pre-0.3.0 service/access group, if one is there and we have none.
-    public static func migrateLegacyKey() {
-        guard key(create: false) == nil else { return }
-        var old: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: "\(SharedIDs.legacyBundlePrefix).liveline",
-            kSecAttrAccount: keyAccount,
-            kSecUseDataProtectionKeychain: true,
-        ]
-        if let g = KeychainStore.legacyAccessGroup { old[kSecAttrAccessGroup] = g }
-        var q = old
-        q[kSecReturnData] = true
-        q[kSecMatchLimit] = kSecMatchLimitOne
-        var out: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let d = out as? Data, d.count == 32 else { return }
-        var attrs = keyQuery
-        attrs[kSecValueData] = d
-        attrs[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        attrs[kSecAttrSynchronizable] = false
-        if SecItemAdd(attrs as CFDictionary, nil) == errSecSuccess { SecItemDelete(old as CFDictionary) }
-    }
-
     // MARK: Codec
 
     private static func encode(_ samples: [LiveSample]) -> Data {

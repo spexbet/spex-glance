@@ -5,11 +5,6 @@ import WidgetKit
 @main
 struct SpexGlanceApp: App {
     @StateObject private var model = AppModel()
-
-    init() {
-        // Must run before AppModel reads the keychain or the App Group defaults.
-        Migration.run()
-    }
     @AppStorage(Prefs.appearanceKey, store: Prefs.defaults) private var appearance: Prefs.Appearance = .system
     @AppStorage(Prefs.menuBarShowPnLKey, store: Prefs.defaults) private var menuBarShowPnL = true
     @AppStorage(Prefs.workModeKey, store: Prefs.defaults) private var workMode = false
@@ -167,6 +162,8 @@ final class AppModel: ObservableObject {
     @Published var expandedGroups: Set<String> = []
     /// Set when the connected key turns out to have write scopes (checked once per launch).
     @Published var keyScopeWarning: String?
+    /// Resting orders Kalshi cancelled itself this session (newest first, last 12 hours, max 10).
+    @Published var kalshiCancels: [KalshiCancel] = []
     private var scopeChecked = false
 
     func toggleExpanded(_ id: String) {
@@ -401,6 +398,13 @@ final class AppModel: ObservableObject {
 
     private func applyOrder(_ o: LiveOrder) {
         guard var s = snapshot else { return }
+        if o.status == "canceled", let why = KalshiCancel.explanation(for: o.reason),
+           let open = s.orders.first(where: { $0.id == o.orderID }) {
+            let cutoff = Date().addingTimeInterval(-12 * 3600)
+            kalshiCancels = ([KalshiCancel(id: open.id, eventTitle: open.eventTitle, sideTitle: open.sideTitle,
+                                           isYes: open.isYes, isBuy: open.isBuy, reason: why, at: Date())]
+                             + kalshiCancels.filter { $0.id != open.id && $0.at > cutoff }).prefix(10).map { $0 }
+        }
         let isNew = s.applyOrder(id: o.orderID, ticker: o.ticker, status: o.status, isYes: o.isYes, isBuy: o.isBuy,
                                  yesPrice: o.yesPriceDollars, remaining: o.remaining)
         s.liveUpdatedAt = Date()

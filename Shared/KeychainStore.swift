@@ -69,31 +69,4 @@ public enum KeychainStore {
     public static func delete() {
         SecItemDelete(baseQuery as CFDictionary)
     }
-
-    // MARK: Pre-0.3.0 item (com.example.spexglance), read once by Migration
-
-    static var legacyAccessGroup: String? {
-        accessGroup?.replacingOccurrences(of: SharedIDs.bundlePrefix, with: SharedIDs.legacyBundlePrefix)
-    }
-    private static var legacyQuery: [CFString: Any] {
-        var q: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: "\(SharedIDs.legacyBundlePrefix).credential",
-            kSecAttrAccount: account,
-            kSecUseDataProtectionKeychain: true,
-        ]
-        if let g = legacyAccessGroup { q[kSecAttrAccessGroup] = g }
-        return q
-    }
-    public static func loadLegacy() -> KalshiCredential? {
-        var q = legacyQuery
-        q[kSecReturnData] = true
-        q[kSecMatchLimit] = kSecMatchLimitOne
-        var out: CFTypeRef?
-        guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
-        return try? JSONDecoder().decode(KalshiCredential.self, from: data)
-    }
-    public static func deleteLegacy() {
-        SecItemDelete(legacyQuery as CFDictionary)
-    }
 }

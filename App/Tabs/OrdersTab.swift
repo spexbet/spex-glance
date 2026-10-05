@@ -9,6 +9,22 @@ struct OrdersTab: View {
 
     var body: some View {
         List {
+            if !model.kalshiCancels.isEmpty {
+                Section {
+                    ForEach(model.kalshiCancels) { c in
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(c.eventTitle).font(.headline).lineLimit(2)
+                            Text("\(c.isBuy ? "Buy" : "Sell") · \(c.isYes ? "Yes" : "No") · \(c.sideTitle)")
+                                .font(.caption).foregroundStyle(.secondary)
+                            Text("\(c.reason) · \(c.at.formatted(date: .omitted, time: .shortened))")
+                                .font(.caption).foregroundStyle(Brand.ember)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    Text("Recently cancelled by Kalshi")
+                }
+            }
             Section {
                 if orders.isEmpty {
                     Text(model.isRefreshing && model.snapshot == nil ? "Loading…" : "No resting orders.")
