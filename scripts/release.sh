@@ -44,22 +44,11 @@ PUBLISH="${2:-}"
 BUILD="$(tr -d '[:space:]' < BUILD_NUMBER)"
 case "$BUILD" in ''|*[!0-9]*) echo "BUILD_NUMBER must be a positive integer (got '$BUILD')."; exit 1;; esac
 
-# Guard: BUILD must exceed every already-published build, or Sparkle won't offer the update.
-# Check this repo's appcast and — while the update bridge exists — the old repo's appcast
-# (URL in the untracked .bridge-appcast-url, which keeps the old handle out of this public repo).
-max_ver() { grep -oE '<sparkle:version>[0-9]+' 2>/dev/null | grep -oE '[0-9]+' | sort -n | tail -1; }
-GMAX="$([ -f appcast.xml ] && max_ver < appcast.xml)"; GMAX="${GMAX:-0}"
-if [ -f .bridge-appcast-url ]; then
-  BURL="$(tr -d '[:space:]' < .bridge-appcast-url)"
-  OMAX="$(curl -fsSL "$BURL" 2>/dev/null | max_ver)"; OMAX="${OMAX:-0}"
-  [ "$OMAX" -gt "$GMAX" ] && GMAX="$OMAX"
-fi
-if [ "$BUILD" -le "$GMAX" ]; then
-  echo "Refusing to build: BUILD_NUMBER ($BUILD) must be greater than the highest published build ($GMAX)."
-  echo "Bump BUILD_NUMBER and retry."
-  exit 1
-fi
-echo "Build number: $BUILD (highest already published: $GMAX)"
+# Build-number guard (own script so it can be unit-tested — see scripts/build-guard.test.sh).
+# Refuses the build unless BUILD exceeds every already-published build (this repo's appcast and,
+# while the update bridge exists, the old repo's appcast via .bridge-appcast-url). set -e aborts
+# the release if it exits non-zero.
+scripts/build-guard.sh "$BUILD"
 
 DIST="dist"; rm -rf "$DIST"; mkdir -p "$DIST"
 
