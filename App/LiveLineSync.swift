@@ -11,6 +11,12 @@ private let log = Logger(subsystem: "bet.spex.glance", category: "sync")
 /// into the local chunk. Record bytes are the flat sample array; Apple encrypts the private
 /// database (end-to-end under Advanced Data Protection). The Kalshi key is never involved.
 ///
+/// Joining: a Mac with no local history (new install, work Mac, after Clear) always does a full
+/// download of the zone before it uploads anything, so it joins the existing line instead of
+/// starting its own. Every build talks to CloudKit's Production database (entitlement in
+/// project.yml, enforced by scripts/check-icloud-env.sh) — a Development-database build would
+/// see a different, empty zone.
+///
 /// Without an iCloud account the recorder keeps writing locally and this class just reports
 /// `.noAccount`; it catches up when an account appears. Account changes are watched because
 /// CloudKit stops silently otherwise.
@@ -42,6 +48,7 @@ final class LiveLineSync: ObservableObject {
     private static let tokenKey = "liveLineCKChangeToken"
     private static let machineKey = "liveLineMachineID"
     private static let zoneKey = "liveLineCKZoneCreated"
+    private static let productionKey = "liveLineCKProductionV1"
 
     private var env: KalshiEnvironment?
     private var pending: Set<String> = []
@@ -49,6 +56,10 @@ final class LiveLineSync: ObservableObject {
     private var pullTimer: Timer?
     private var observer: NSObjectProtocol?
     private var running = false
+    private var pulling = false
+    private var pullAgain = false
+    private var retryTask: Task<Void, Never>?
+    private var retryDelay: TimeInterval = 30
 
     /// Stable per-Mac id (random, stored in the App Group). Not the hardware UUID.
     private var machine: String {
@@ -68,13 +79,18 @@ final class LiveLineSync: ObservableObject {
     func start(env: KalshiEnvironment) {
         self.env = env
         guard Self.enabled else { stop(); return }
-        if running {
-            // Already up: treat a repeat start (Change… → iCloud again) as "try now".
-            Task { await checkAccount(thenPull: true) }
-            return
-        }
+        if running { return }   // already up; the 15-minute timer and account changes keep it current
         running = true
         status = .checking
+        // 0.3.2: every build now uses the Production database. A bookmark or zone flag saved by an
+        // earlier Development-signed beta belongs to the other database, so drop it once and do a
+        // full download from Production.
+        if !Prefs.defaults.bool(forKey: Self.productionKey) {
+            Prefs.defaults.removeObject(forKey: Self.tokenKey)
+            Prefs.defaults.removeObject(forKey: Self.zoneKey)
+            Prefs.defaults.set(true, forKey: Self.productionKey)
+            log.notice("sync: reset bookmark for the Production database")
+        }
         observer = NotificationCenter.default.addObserver(forName: .CKAccountChanged, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in await self?.checkAccount(thenPull: true) }
         }
@@ -89,6 +105,7 @@ final class LiveLineSync: ObservableObject {
         pullTimer?.invalidate(); pullTimer = nil
         if let o = observer { NotificationCenter.default.removeObserver(o); observer = nil }
         pushTask?.cancel(); pushTask = nil
+        retryTask?.cancel(); retryTask = nil
         pending = []
         status = .off
     }
@@ -112,16 +129,28 @@ final class LiveLineSync: ObservableObject {
 
     // MARK: Zone
 
+    /// Uses the zone that's already in iCloud; creates it only if this account has none yet.
     private func ensureZone() async -> Bool {
         if Prefs.defaults.bool(forKey: Self.zoneKey) { return true }
         do {
-            _ = try await db.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: [])
-            Prefs.defaults.set(true, forKey: Self.zoneKey)
-            return true
+            _ = try await db.recordZone(for: zoneID)
+            log.notice("zone: found existing LiveLine zone")
+        } catch let ck as CKError where ck.code == .zoneNotFound || ck.code == .userDeletedZone {
+            do {
+                _ = try await db.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: [])
+                log.notice("zone: none in iCloud yet, created LiveLine zone")
+            } catch {
+                log.error("zone: create failed: \(error.localizedDescription, privacy: .public)")
+                status = .error(error.localizedDescription)
+                return false
+            }
         } catch {
+            log.error("zone: lookup failed: \(error.localizedDescription, privacy: .public)")
             status = .error(error.localizedDescription)
             return false
         }
+        Prefs.defaults.set(true, forKey: Self.zoneKey)
+        return true
     }
 
     // MARK: Push
@@ -140,16 +169,28 @@ final class LiveLineSync: ObservableObject {
     }
 
     /// Everything on disk, for the switch to iCloud (and a safety net on each start).
+    /// Download first, so a Mac joining an existing line merges it before adding its own hours.
     func uploadAll() {
-        guard let env else { return }
-        for h in LiveLineStore.hours(env: env) { pending.insert(h) }
-        Task { await pushPending() }
+        guard env != nil else { return }
+        Task {
+            await pull()
+            guard let env = self.env else { return }
+            for h in LiveLineStore.hours(env: env) { pending.insert(h) }
+            await pushPending()
+        }
     }
 
     private func pushPending() async {
         guard let env, !pending.isEmpty else { return }
         if !accountOK { await checkAccount(thenPull: false); guard accountOK else { return } }
         guard await ensureZone() else { return }
+        // A Mac that hasn't completed a download yet waits, so it never uploads a lone fragment
+        // of history ahead of joining the line already in iCloud.
+        if Prefs.defaults.data(forKey: Self.tokenKey) == nil {
+            log.notice("push: deferred until the first full download completes")
+            await pull()
+            guard Prefs.defaults.data(forKey: Self.tokenKey) != nil else { return }
+        }
         let hours = pending; pending = []
         var records: [CKRecord] = []
         for h in hours {
@@ -181,34 +222,53 @@ final class LiveLineSync: ObservableObject {
 
     func pull() async {
         guard let env, Self.enabled else { return }
+        if pulling { pullAgain = true; return }   // one download at a time
+        pulling = true
+        defer { pulling = false }
         if !accountOK { await checkAccount(thenPull: false); guard accountOK else { return } }
-        guard await ensureZone() else { return }
+        guard await ensureZone() else { scheduleRetry(); return }
+
+        // No local history (new Mac, work Mac, after Clear) or no bookmark: download everything.
+        let localEmpty = LiveLineStore.info(env: env).chunks == 0
         var token: CKServerChangeToken? = nil
-        if let d = Prefs.defaults.data(forKey: Self.tokenKey) {
+        if !localEmpty, let d = Prefs.defaults.data(forKey: Self.tokenKey) {
             token = try? NSKeyedUnarchiver.unarchivedObject(ofClass: CKServerChangeToken.self, from: d)
         }
-        var merged = 0
+        let full = token == nil
+        var pages = 0, received = 0, merged = 0, failed = 0
         do {
             var more = true
             while more {
                 let result = try await db.recordZoneChanges(inZoneWith: zoneID, since: token)
-                for (_, res) in result.modificationResultsByID {
-                    guard case .success(let mod) = res else { continue }
-                    let r = mod.record
-                    guard let hour = r["hour"] as? String,
-                          let recEnv = r["env"] as? String, recEnv == env.rawValue,
-                          let data = r["data"] as? Data else { continue }
-                    if LiveLineStore.mergeChunk(env: env, hour: hour, data: data) { merged += 1 }
+                pages += 1
+                for (id, res) in result.modificationResultsByID {
+                    switch res {
+                    case .success(let mod):
+                        received += 1
+                        let r = mod.record
+                        guard let hour = r["hour"] as? String,
+                              let recEnv = r["env"] as? String, recEnv == env.rawValue,
+                              let data = r["data"] as? Data else { continue }
+                        if LiveLineStore.mergeChunk(env: env, hour: hour, data: data) { merged += 1 }
+                    case .failure(let e):
+                        failed += 1
+                        log.error("pull: record \(id.recordName, privacy: .public) failed: \(e.localizedDescription, privacy: .public)")
+                    }
                 }
                 token = result.changeToken
                 more = result.moreComing
             }
-            if let token, let d = try? NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true) {
+            // Only a complete download moves the bookmark; a partial one is retried from scratch.
+            if failed == 0, let token,
+               let d = try? NSKeyedArchiver.archivedData(withRootObject: token, requiringSecureCoding: true) {
                 Prefs.defaults.set(d, forKey: Self.tokenKey)
             }
+            log.notice("pull: \(full ? "full" : "incremental", privacy: .public) · \(pages) page(s) · \(received) record(s) · \(merged) merged · \(failed) failed")
             lastPullAt = Date()
             if status != .syncing { status = .syncing }
+            if failed > 0 { scheduleRetry() } else { retryDelay = 30 }
         } catch {
+            log.error("pull failed after \(pages) page(s): \(error.localizedDescription, privacy: .public)")
             if let ck = error as? CKError {
                 switch ck.code {
                 case .changeTokenExpired, .zoneNotFound, .userDeletedZone:
@@ -222,8 +282,24 @@ final class LiveLineSync: ObservableObject {
             } else {
                 status = .error(error.localizedDescription)
             }
+            scheduleRetry()
         }
         if merged > 0 { NotificationCenter.default.post(name: .liveLineMerged, object: nil) }
+        if pullAgain { pullAgain = false; Task { await pull() } }
+    }
+
+    /// After a failed or partial download: try again soon (30 s, doubling to 15 min), not just
+    /// on the next 15-minute tick.
+    private func scheduleRetry() {
+        guard running, retryTask == nil else { return }
+        let delay = retryDelay
+        retryDelay = min(retryDelay * 2, 15 * 60)
+        log.notice("pull: retry in \(Int(delay)) s")
+        retryTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            self?.retryTask = nil
+            await self?.pull()
+        }
     }
 
     // MARK: Delete

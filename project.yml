@@ -16,7 +16,7 @@ settings:
     SWIFT_VERSION: "5.9"
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "0.3.2"
-    CURRENT_PROJECT_VERSION: "41"
+    CURRENT_PROJECT_VERSION: "42"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: minimal
     # Notarization requires the hardened runtime on every executable (app + widget).
@@ -49,6 +49,10 @@ targets:
         # Live Line → iCloud (opt-in). Private database only; see App/LiveLineSync.swift.
         com.apple.developer.icloud-services: [CloudKit]
         com.apple.developer.icloud-container-identifiers: [iCloud.bet.spex.glance]
+        # ALWAYS Production, in every build (local betas signed "Apple Development" included).
+        # Without this a development-signed build silently uses CloudKit's Development database,
+        # and a second Mac sees a separate, empty Live Line. scripts/check-icloud-env.sh enforces it.
+        com.apple.developer.icloud-container-environment: Production
         # Sparkle 2 inside the sandbox reaches its XPC services by these names.
         com.apple.security.temporary-exception.mach-lookup.global-name:
           - "$(PRODUCT_BUNDLE_IDENTIFIER)-spks"

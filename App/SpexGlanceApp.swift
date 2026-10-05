@@ -164,6 +164,8 @@ final class AppModel: ObservableObject {
     @Published var keyScopeWarning: String?
     /// Resting orders Kalshi cancelled itself this session (newest first, last 12 hours, max 10).
     @Published var kalshiCancels: [KalshiCancel] = []
+    /// Last Live Line enabled/store/env combination sync was started for.
+    private var liveLineSyncSig = ""
     private var scopeChecked = false
 
     func toggleExpanded(_ id: String) {
@@ -221,8 +223,13 @@ final class AppModel: ObservableObject {
             self?.liveLineUpdatedAt = Date()
         }
         // Settings flips the Live Line prefs; (re)evaluate sync whenever they change.
+        // Only the Live Line switches matter. Reacting to every write (sync saves its own bookmark
+        // in these defaults) re-entered start() in a loop and fired a burst of downloads.
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: Prefs.defaults, queue: .main) { [weak self] _ in
             guard let self, let env = self.credential?.environment else { return }
+            let sig = "\(LiveLineRecorder.enabled)|\(Prefs.defaults.string(forKey: Prefs.liveLineStoreKey) ?? "")|\(env.rawValue)"
+            guard sig != self.liveLineSyncSig else { return }
+            self.liveLineSyncSig = sig
             LiveLineSync.shared.start(env: env)
         }
         if let cred = credential {

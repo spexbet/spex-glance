@@ -96,7 +96,10 @@ struct PnLTab: View {
         let last = live.last?.sportsTotal
         let first = live.first?.sportsTotal
         let delta = (last != nil && first != nil) ? last! - first! : nil
-        let since = liveLineEnabledAt > 0 ? Fmt.gameTime(Date(timeIntervalSince1970: liveLineEnabledAt)) : "today"
+        // Oldest sample here, including history downloaded from your other Macs.
+        let oldest = model.credential.flatMap { LiveLineStore.info(env: $0.environment).oldest }
+        let since = oldest.map { Fmt.gameTime($0) }
+            ?? (liveLineEnabledAt > 0 ? Fmt.gameTime(Date(timeIntervalSince1970: liveLineEnabledAt)) : "today")
         return card {
             HStack(alignment: .firstTextBaseline) {
                 Text("LIVE LINE · SPORTS TOTAL")

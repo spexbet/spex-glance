@@ -20,6 +20,7 @@ if [ -z "$PRODUCTS" ] || [ ! -d "$PRODUCTS/Spex Glance.app" ]; then
   echo "Built app not found — installed app left untouched."
   exit 1
 fi
+./scripts/check-icloud-env.sh "$PRODUCTS/Spex Glance.app" || { echo "Installed app left untouched."; exit 1; }
 pkill -x "Spex Glance" 2>/dev/null || true
 sleep 1
 rm -rf "/Applications/Spex Glance.app"

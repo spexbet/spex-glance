@@ -99,6 +99,8 @@ printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' \
 xcodebuild -exportArchive -archivePath "$DIST/$APP.xcarchive" -exportOptionsPlist "$DIST/export.plist" \
   -exportPath "$DIST/export" -allowProvisioningUpdates | grep -E "error:|EXPORT" || true
 
+./scripts/check-icloud-env.sh "$DIST/export/$APP.app" || exit 1
+
 echo "== notarize app"
 ditto -c -k --keepParent "$DIST/export/$APP.app" "$DIST/notarize.zip"
 xcrun notarytool submit "$DIST/notarize.zip" --keychain-profile "$NOTARY_PROFILE" --wait
