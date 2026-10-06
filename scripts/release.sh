@@ -143,18 +143,22 @@ if [ "$PUBLISH" = "--publish" ]; then
   gh api repos/spexbet/spex.bet/dispatches -f event_type=release \
     && echo "spex.bet redeploy requested." \
     || echo "WARN: could not ping spex.bet (site updates on its daily run instead)."
-  # Homebrew: bump the cask in spexbet/homebrew-tap so `brew install --cask spex-glance` gets this version.
-  TAP_DIR="$(mktemp -d)"
-  if git clone -q --depth 1 https://github.com/spexbet/homebrew-tap.git "$TAP_DIR"; then
-    SHA="$(shasum -a 256 "$DMG" | awk '{print $1}')"
-    sed -i '' -e "s/^  version \".*\"/  version \"$VERSION\"/" -e "s/^  sha256 \".*\"/  sha256 \"$SHA\"/" "$TAP_DIR/Casks/spex-glance.rb"
-    git -C "$TAP_DIR" commit -qam "spex-glance $VERSION" \
-      && git -C "$TAP_DIR" push -q \
-      && echo "Homebrew tap updated: spex-glance $VERSION." \
-      || echo "WARN: Homebrew tap not updated; bump Casks/spex-glance.rb in spexbet/homebrew-tap by hand."
-  else
-    echo "WARN: could not clone spexbet/homebrew-tap; bump the cask by hand."
-  fi
-  rm -rf "$TAP_DIR"
+  # Homebrew: bump the cask in spexbet/homebrew-tap (scripts/tap-bump.sh). A tap failure doesn't
+  # undo the release, but it is reported loudly at the end and the run exits non-zero.
+  TAP_LOG="$DIST/tap-bump.log"
+  TAP_RC=0
+  scripts/tap-bump.sh "$VERSION" "$DMG" > "$TAP_LOG" 2>&1 || TAP_RC=$?
+  cat "$TAP_LOG"
   echo "Published. Sparkle clients see $VERSION on their next check (daily, or Check for Updates…)."
+  if [ "$TAP_RC" -ne 0 ]; then
+    echo ""
+    echo "=================================================================="
+    echo "  TAP NOT UPDATED: spexbet/homebrew-tap is still on the old version"
+    echo "  $(grep '^tap-bump:' "$TAP_LOG" | tail -1)"
+    echo "  The release itself is published. Fix the cause, then run:"
+    echo "    scripts/tap-bump.sh $VERSION $DMG"
+    echo "  (log: $TAP_LOG)"
+    echo "=================================================================="
+    exit 1
+  fi
 fi
