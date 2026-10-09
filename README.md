@@ -54,8 +54,8 @@ line; the app list expands each game to its markets.
 `COMBO Vegas · Atlanta ✓ · Vacherot 12%` — where each leg is colored by whether it has hit or
 missed and the percentage is the combo's own market price. Expand the row for per-leg odds. A
 combo counts as sports when every leg is a sports market; it appears under All, under a
-"Combos" pill, and under each sport it touches. Leg quotes stream live like everything else. Tapping the widget opens the app, which
-forwards you to your Kalshi portfolio page.
+"Combos" pill, and under each sport it touches. Leg quotes stream live like everything else. Clicking a game on the
+widget opens the Spex Glance window on that game; clicking anywhere else opens it on Positions.
 
 ## Requirements
 
