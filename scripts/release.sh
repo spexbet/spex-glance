@@ -44,22 +44,11 @@ PUBLISH="${2:-}"
 BUILD="$(tr -d '[:space:]' < BUILD_NUMBER)"
 case "$BUILD" in ''|*[!0-9]*) echo "BUILD_NUMBER must be a positive integer (got '$BUILD')."; exit 1;; esac
 
-# Guard: BUILD must exceed every already-published build, or Sparkle won't offer the update.
-# Check this repo's appcast and — while the update bridge exists — the old repo's appcast
-# (URL in the untracked .bridge-appcast-url, which keeps the old handle out of this public repo).
-max_ver() { grep -oE '<sparkle:version>[0-9]+' 2>/dev/null | grep -oE '[0-9]+' | sort -n | tail -1; }
-GMAX="$([ -f appcast.xml ] && max_ver < appcast.xml)"; GMAX="${GMAX:-0}"
-if [ -f .bridge-appcast-url ]; then
-  BURL="$(tr -d '[:space:]' < .bridge-appcast-url)"
-  OMAX="$(curl -fsSL "$BURL" 2>/dev/null | max_ver)"; OMAX="${OMAX:-0}"
-  [ "$OMAX" -gt "$GMAX" ] && GMAX="$OMAX"
-fi
-if [ "$BUILD" -le "$GMAX" ]; then
-  echo "Refusing to build: BUILD_NUMBER ($BUILD) must be greater than the highest published build ($GMAX)."
-  echo "Bump BUILD_NUMBER and retry."
-  exit 1
-fi
-echo "Build number: $BUILD (highest already published: $GMAX)"
+# Build-number guard (own script so it can be unit-tested — see scripts/build-guard.test.sh).
+# Refuses the build unless BUILD exceeds every already-published build (this repo's appcast and,
+# while the update bridge exists, the old repo's appcast via .bridge-appcast-url). set -e aborts
+# the release if it exits non-zero.
+scripts/build-guard.sh "$BUILD"
 
 DIST="dist"; rm -rf "$DIST"; mkdir -p "$DIST"
 
@@ -156,18 +145,22 @@ if [ "$PUBLISH" = "--publish" ]; then
   gh api repos/spexbet/spex.bet/dispatches -f event_type=release \
     && echo "spex.bet redeploy requested." \
     || echo "WARN: could not ping spex.bet (site updates on its daily run instead)."
-  # Homebrew: bump the cask in spexbet/homebrew-tap so `brew install --cask spex-glance` gets this version.
-  TAP_DIR="$(mktemp -d)"
-  if git clone -q --depth 1 https://github.com/spexbet/homebrew-tap.git "$TAP_DIR"; then
-    SHA="$(shasum -a 256 "$DMG" | awk '{print $1}')"
-    sed -i '' -e "s/^  version \".*\"/  version \"$VERSION\"/" -e "s/^  sha256 \".*\"/  sha256 \"$SHA\"/" "$TAP_DIR/Casks/spex-glance.rb"
-    git -C "$TAP_DIR" commit -qam "spex-glance $VERSION" \
-      && git -C "$TAP_DIR" push -q \
-      && echo "Homebrew tap updated: spex-glance $VERSION." \
-      || echo "WARN: Homebrew tap not updated; bump Casks/spex-glance.rb in spexbet/homebrew-tap by hand."
-  else
-    echo "WARN: could not clone spexbet/homebrew-tap; bump the cask by hand."
-  fi
-  rm -rf "$TAP_DIR"
+  # Homebrew: bump the cask in spexbet/homebrew-tap (scripts/tap-bump.sh). A tap failure doesn't
+  # undo the release, but it is reported loudly at the end and the run exits non-zero.
+  TAP_LOG="$DIST/tap-bump.log"
+  TAP_RC=0
+  scripts/tap-bump.sh "$VERSION" "$DMG" > "$TAP_LOG" 2>&1 || TAP_RC=$?
+  cat "$TAP_LOG"
   echo "Published. Sparkle clients see $VERSION on their next check (daily, or Check for Updates…)."
+  if [ "$TAP_RC" -ne 0 ]; then
+    echo ""
+    echo "=================================================================="
+    echo "  TAP NOT UPDATED: spexbet/homebrew-tap is still on the old version"
+    echo "  $(grep '^tap-bump:' "$TAP_LOG" | tail -1)"
+    echo "  The release itself is published. Fix the cause, then run:"
+    echo "    scripts/tap-bump.sh $VERSION $DMG"
+    echo "  (log: $TAP_LOG)"
+    echo "=================================================================="
+    exit 1
+  fi
 fi

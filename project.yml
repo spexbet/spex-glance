@@ -4,7 +4,7 @@
 name: SpexGlance
 
 options:
-  bundleIdPrefix: bet.spex.glance   # App Group is "<TeamID>.bet.spex.glance" (macOS form; a "group." id needs profile support cfprefsd did not grant). Keep in sync with SharedIDs.bundlePrefix + entitlements
+  bundleIdPrefix: bet.spex.glance   # App Group is "<TeamID>.bet.spex.glance" (macOS form; a "group." id needs profile support cfprefsd did not grant). Legacy com.example.* groups stay in the entitlements for one release (Migration.swift); keep in sync with SharedIDs.bundlePrefix + entitlements
   deploymentTarget:
     macOS: "15.0"   # Apple-supported releases only: 15, 26, 27
   createIntermediateGroups: true
@@ -16,7 +16,7 @@ settings:
     SWIFT_VERSION: "5.9"
     CODE_SIGN_STYLE: Automatic
     MARKETING_VERSION: "0.3.2"
-    CURRENT_PROJECT_VERSION: "43"
+    CURRENT_PROJECT_VERSION: "47"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     SWIFT_STRICT_CONCURRENCY: minimal
     # Notarization requires the hardened runtime on every executable (app + widget).
@@ -41,18 +41,14 @@ targets:
     entitlements:
       path: App/SpexGlance.entitlements
       properties:
-        com.apple.security.application-groups: ["$(TeamIdentifierPrefix)bet.spex.glance"]
-        keychain-access-groups: ["$(AppIdentifierPrefix)bet.spex.glance.shared"]
+        com.apple.security.application-groups: ["$(TeamIdentifierPrefix)bet.spex.glance", group.com.example.spexglance]
+        keychain-access-groups: ["$(AppIdentifierPrefix)bet.spex.glance.shared", "$(AppIdentifierPrefix)com.example.spexglance.shared"]
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
         com.apple.security.files.user-selected.read-write: true
         # Live Line → iCloud (opt-in). Private database only; see App/LiveLineSync.swift.
         com.apple.developer.icloud-services: [CloudKit]
         com.apple.developer.icloud-container-identifiers: [iCloud.bet.spex.glance]
-        # ALWAYS Production, in every build (local betas signed "Apple Development" included).
-        # Without this a development-signed build silently uses CloudKit's Development database,
-        # and a second Mac sees a separate, empty Live Line. scripts/check-icloud-env.sh enforces it.
-        com.apple.developer.icloud-container-environment: Production
         # Sparkle 2 inside the sandbox reaches its XPC services by these names.
         com.apple.security.temporary-exception.mach-lookup.global-name:
           - "$(PRODUCT_BUNDLE_IDENTIFIER)-spks"
@@ -68,10 +64,6 @@ targets:
         LSApplicationCategoryType: public.app-category.finance
         SpexKeychainAccessGroup: "$(AppIdentifierPrefix)bet.spex.glance.shared"
         SpexAppGroup: "$(TeamIdentifierPrefix)bet.spex.glance"
-        # Widget taps: spexglance://positions and spexglance://game?id=… (Shared/DeepLink.swift).
-        CFBundleURLTypes:
-          - CFBundleURLName: bet.spex.glance
-            CFBundleURLSchemes: [spexglance]
         # Bundled Space Grotesk (OFL) sits flat in Resources; "." tells AppKit to load fonts from there.
         ATSApplicationFontsPath: "."
         NSAppTransportSecurity:
@@ -109,8 +101,8 @@ targets:
     entitlements:
       path: Widget/SpexGlanceWidget.entitlements
       properties:
-        com.apple.security.application-groups: ["$(TeamIdentifierPrefix)bet.spex.glance"]
-        keychain-access-groups: ["$(AppIdentifierPrefix)bet.spex.glance.shared"]
+        com.apple.security.application-groups: ["$(TeamIdentifierPrefix)bet.spex.glance", group.com.example.spexglance]
+        keychain-access-groups: ["$(AppIdentifierPrefix)bet.spex.glance.shared", "$(AppIdentifierPrefix)com.example.spexglance.shared"]
         com.apple.security.app-sandbox: true
         com.apple.security.network.client: true
     info:

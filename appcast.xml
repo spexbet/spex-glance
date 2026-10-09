@@ -2,5 +2,19 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>Spex Glance</title>
+    <item>
+      <title>Spex Glance 0.3.2</title>
+      <link>https://github.com/spexbet/spex-glance/releases/tag/v0.3.2</link>
+      <sparkle:version>47</sparkle:version>
+      <sparkle:shortVersionString>0.3.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 05 Oct 2026 15:53:20 -0700</pubDate>
+      <description><![CDATA[
+<p>
+Updates now come from spex.bet. Nothing else changes: your settings, connection, and Live Line history carry over.
+</p>
+      ]]></description>
+      <enclosure url="https://github.com/spexbet/spex-glance/releases/download/v0.3.2/SpexGlance-0.3.2.dmg" sparkle:edSignature="xWd5YcS9Hhwx/1o1qxn0/1oj49F/qYH5Mv5xW3CzaPwGDP4/D825FjDQsuqu0xJFbppV38e0V44RxiMbGTzWCQ==" length="3046037" type="application/octet-stream" />
+    </item>
   </channel>
 </rss>
