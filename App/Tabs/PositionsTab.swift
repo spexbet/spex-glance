@@ -27,7 +27,7 @@ struct PositionsTab: View {
                         Text("Live").font(.caption.weight(liveOnly ? .semibold : .regular))
                     }
                     .toggleStyle(.checkbox)
-                    .help("Only games being played now, or finished and awaiting settlement")
+                    .help("Only games being played now, or finished and awaiting settlement (⌘L)")
                     .accessibilityLabel("Show live games only")
                     Spacer()
                     Menu {

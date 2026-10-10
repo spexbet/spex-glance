@@ -45,7 +45,8 @@ On the **Positions** tab, the **Live** checkbox (left of the sport pills) narrow
 to games that have started and haven't settled yet: games in progress, plus finished games
 still marked *Final · awaiting settlement*. A finished game stays until Kalshi pays it out,
 then drops off. A combo shows as soon as any one of its legs is live. The checkbox works
-together with the sport pills and is remembered across launches.
+together with the sport pills and is remembered across launches. **⌘L** toggles it (Positions →
+Live Games Only); from another tab it jumps to Positions with Live on.
 
 Positions in the same game (YES "Dodgers win" + NO "Giants win") fold into one row with a net
 line; the app list expands each game to its markets.

@@ -8,6 +8,7 @@ struct SpexGlanceApp: App {
     @AppStorage(Prefs.appearanceKey, store: Prefs.defaults) private var appearance: Prefs.Appearance = .system
     @AppStorage(Prefs.menuBarShowPnLKey, store: Prefs.defaults) private var menuBarShowPnL = true
     @AppStorage(Prefs.workModeKey, store: Prefs.defaults) private var workMode = false
+    @AppStorage(Prefs.positionsLiveOnlyKey, store: Prefs.defaults) private var liveOnly = false
 
     var body: some Scene {
         // One window, ever. A widget tap or the menu bar's "Open" brings this window forward; it
@@ -43,6 +44,15 @@ struct SpexGlanceApp: App {
             CommandMenu("Positions") {
                 Button("Expand / Collapse All") { model.toggleExpandAll() }
                     .keyboardShortcut("e", modifiers: .command)
+                // ⌘L: same switch as the Live checkbox on Positions. From another tab it jumps to
+                // Positions with Live on, rather than flipping a filter you can't see.
+                Toggle("Live Games Only", isOn: Binding(
+                    get: { liveOnly },
+                    set: { on in
+                        if model.tab == .positions { liveOnly = on }
+                        else { model.selectTab(.positions); liveOnly = true }
+                    }))
+                    .keyboardShortcut("l", modifiers: .command)
                 Button("Refresh") { Task { await model.refresh() } }
                     .keyboardShortcut("r", modifiers: .command)
                 Divider()
